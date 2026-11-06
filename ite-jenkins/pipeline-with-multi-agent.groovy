@@ -5,7 +5,6 @@ pipeline {
         DH_USER="lyvanna544"
         TAG="1.0.${env.BUILD_NUMBER}"
         FULL_IMAGE="${DH_IMAGE}:${TAG}"
-        
     }
     stages {
         stage('Clone Code') {
@@ -35,7 +34,7 @@ pipeline {
             steps{
             script{
                 def userInput=input message: 'Choose Server', parameters: [choice(choices: ['prod-server', 'stage-server'], name: 'CHOOSE YOUR ENVIRONMENT:')] 
-                //env.SELECTED_ENV = userInput 
+               
                 node(userInput){
                     stage("Deploy Container"){
                      sh """
