@@ -46,13 +46,47 @@ pipeline {
             } 
         }
         
+        stage("Wait for Quality Gate"){
+            steps{
+                script{
+                    def qg = waitForQualityGate()
+                    if ( qg.status != 'OK'){
+                        sh """
+                        echo " No need to build since you QG is failed "
+                        """
 
-
+                        currentBuild.result='FAILURE'
+                        error("Quality Gate is Failed !! ")
+                        return 
+                    }else {
+                        // quality gate is passed ! 
+                        echo "Quality of code is okay!! "
+                        currentBuild.result='SUCCESS'
+                    }
+                }
             }
-
-
-    
-    
-
+        }
+        stage('Build Image') {
+                    steps {
+                        sh """
+                        docker build -t ${DH_IMAGE}:${TAG} -f prod.Dockerfile . 
+                        """
+                    }
+                
+                }
+        stage("Push"){
+            steps{
+                withCredentials([usernamePassword(credentialsId: 'DH_STAG', passwordVariable: 'PASS', usernameVariable: 'NAME')]) {
+                sh """
+                    docker tag ${FULL_IMAGE} ${NAME}/${FULL_IMAGE}
+                    docker login -u ${NAME} -p ${PASS}
+                    docker push ${NAME}/${FULL_IMAGE} 
+                    
+                    
+                """
+                }
+            }
+        }
+            }
 
 }
