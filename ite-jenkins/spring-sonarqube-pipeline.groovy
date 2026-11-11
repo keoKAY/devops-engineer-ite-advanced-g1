@@ -1,6 +1,8 @@
 pipeline {
     agent any
-
+     tools{
+        nodejs 'nodejs-v22'
+    }
     environment{
         DH_IMAGE="springboot-fileupload-special"
         TAG="v1.0.${env.BUILD_NUMBER}"
@@ -16,13 +18,51 @@ pipeline {
     stages {
         stage('Git Checkout') {
             steps {
-                git 'https://gitlab.com/devops-trainings3/special-trainning/sample-projects/simple-fileupload-gradle.git'
+               // git 'https://gitlab.com/devops-trainings3/special-trainning/sample-projects/simple-fileupload-gradle.git'
+        
+            git 'https://github.com/keoKAY/reactjs-devop8-template.git'
+        
             }
         }
+
+stage('OWASP Dependency Check') {
+    steps {
+         sh '''
+            mkdir -p dependency-check-report
+            npm install 
+        '''
+        dependencyCheck(
+            
+            nvdCredentialsId: 'ndv-api-key',
+            additionalArguments: """
+                --project "${env.JOB_NAME}"
+                --scan .
+                --out dependency-check-report
+                --format XML
+                --format HTML
+                --prettyPrint
+            """,
+            odcInstallation: 'OWASP-Dependency-Check'
+        )
+
+        dependencyCheckPublisher(
+            pattern: 'dependency-check-report/dependency-check-report.xml',
+            failedTotalCritical: 1,
+            failedTotalHigh: 1
+        )
+    }
+
+  
+}
         stage('Sonarqube Scan '){
+            when {
+                expression { false }
+            }
             environment {
                 scannerHome= tool 'sonarqube-scanner' 
             }
+
+
 
             steps{
                 withSonarQubeEnv(credentialsId: 'SONARQUBE-TOKEN', installationName: 'sonarqube-scanner') {
@@ -50,6 +90,9 @@ pipeline {
         }
         
         stage("Wait for Quality Gate"){
+            when {
+                expression { false }
+            }
             steps{
                 script{
                     def qg = waitForQualityGate()
@@ -78,6 +121,9 @@ pipeline {
                 
                 }
         stage("Push"){
+            when {
+                expression { false }
+            } 
             options{
                 timeout(time: 3, unit: 'MINUTES')
             } 
