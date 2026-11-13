@@ -1,4 +1,5 @@
-// Trying to intergrate with the owasp zap services 
+// Trying to intergrate with the owasp zap services
+// NOTE: NOT YET WORKING CORRECTLY  
 pipeline {
     agent any
 
@@ -26,6 +27,9 @@ pipeline {
 
             // This Shall be fixed by shared library 
             stage('Resolve Dependencies') {
+                when {
+                    expression { false }
+                }
                 steps {
                     sh '''
                         set -eu
@@ -88,6 +92,9 @@ pipeline {
             }
             // Fix: used jenkins shared library instead 
             stage('OWASP Dependency Check') {
+                when {
+                    expression { false }
+                }
                 steps {
                     sh '''
                         mkdir -p dependency-check-report
@@ -268,8 +275,19 @@ pipeline {
         stage("Deploy"){
             steps{
                 sh """
-                docker rm -f spring-cont || true 
-                docker run -dp 8081:8080  --name spring-cont ${DH_IMAGE}:${TAG}
+                 # Create network if it does not exist
+                docker network inspect ci-security >/dev/null 2>&1 || \
+                    docker network create ci-security
+
+                # Remove previous container
+                docker rm -f spring-cont || true
+
+                # Deploy application on shared network
+                docker run -d \
+                    --name spring-cont \
+                    --network ci-security \
+                    -p 127.0.0.1:8081:8080 \
+                    ${DH_IMAGE}:${TAG} 
                 """
 
                 // Wait for spring boot be accessible 
@@ -295,40 +313,43 @@ pipeline {
 
     // Fix: this will need to move to the shared lib 
     // Usage: Using the owasp zap for application Security testings
-        stage('OWASP ZAP Scan') {
-            environment {
-                ZAP_IMAGE = 'ghcr.io/zaproxy/zaproxy:stable'
-                ZAP_TARGET_URL = 'http://host.docker.internal:8081'
-            }
+      
 
-            steps {
-                script {
+stage('OWASP ZAP - DAST') {
 
-                    // 1. Prepare reports directory
-                    sh '''
-                        mkdir -p "$WORKSPACE/zap-reports"
-                        chmod 777 "$WORKSPACE/zap-reports"
-                    '''
+    environment {
+        ZAP_IMAGE = 'ghcr.io/zaproxy/zaproxy:stable'
+        ZAP_NETWORK = 'ci-security'
+        ZAP_TARGET_URL = 'http://spring-cont:8080'
+        //ZAP_TARGET_URL = 'https://istad.co'
+    }
 
-                    // 2. Generate Automation Framework YAML
-                    writeFile(
-                        file: 'zap-reports/zap.yaml',
-                        text: """
+    steps {
+        script {
+
+            // 1. Prepare report directory
+            sh '''
+                mkdir -p "$WORKSPACE/zap-reports"
+                chmod 777 "$WORKSPACE/zap-reports"
+            '''
+
+            // 2. Generate Automation Framework configuration
+            writeFile(
+                file: 'zap-reports/zap.yaml',
+                text: """
 env:
-  contexts:
-    - name: target
-      urls:
-        - "${env.ZAP_TARGET_URL}"
   parameters:
     failOnError: true
     failOnWarning: false
     progressToStdout: true
 
+  vars:
+    target: "${env.ZAP_TARGET_URL}"
+
 jobs:
   - type: spider
     parameters:
-      context: target
-      url: "${env.ZAP_TARGET_URL}"
+      url: "\${target}"
       maxDuration: 2
 
   - type: passiveScan-wait
@@ -346,46 +367,64 @@ jobs:
     parameters:
       template: sarif-json
       reportDir: /zap/wrk
-      reportFile: zap-report
+      reportFile: zap-report.sarif
       reportTitle: "OWASP ZAP SARIF Report"
 """
-                    )
+            )
 
-                    // 3. Execute ZAP
-                    int zapStatus = sh(
-                        returnStatus: true,
-                        script: '''
-                            docker pull "$ZAP_IMAGE"
-                            docker run --rm \
-                                --add-host=host.docker.internal:host-gateway \
-                                -v "$WORKSPACE/zap-reports:/zap/wrk/:rw" \
-                                "$ZAP_IMAGE" \
-                                zap.sh -cmd \
-                                -autorun /zap/wrk/zap.yaml
-                        '''
-                    )
+            // 3. Verify application connectivity from ZAP network
+            sh '''
+                echo "Testing application connectivity..."
 
-                    echo "ZAP exit code: ${zapStatus}"
 
-                    // 4. Check generated reports
-                    sh '''
-                        echo "========== ZAP REPORTS =========="
+                docker run --rm \
+                    --network ci-security \
+                    ghcr.io/zaproxy/zaproxy:stable \
+                    curl -sS --max-time 10 \
+                    http://spring-cont:8080 \
+                    -o /dev/null \
+                    -w "HTTP Status: %{http_code}\n"
+                echo "Application is reachable!"
+            '''
 
-                        ls -lah zap-reports/
+            // 4. Execute ZAP Automation Framework
+            int zapStatus = sh(
+                returnStatus: true,
+                script: '''
+                    docker run --rm \
+                        --network "$ZAP_NETWORK" \
+                        -v "$WORKSPACE/zap-reports:/zap/wrk/:rw" \
+                        "$ZAP_IMAGE" \
+                        zap.sh -cmd \
+                        -autorun /zap/wrk/zap.yaml
+                '''
+            )
 
-                        echo "================================="
-                    '''
+            echo "OWASP ZAP exit code: ${zapStatus}"
 
-                    // 5. Fail pipeline when ZAP execution fails
-                    // ZAP autorun exit codes: 0 = OK, 1 = job errors, 2 = job warnings
-                    if (zapStatus == 2) {
-                        unstable("OWASP ZAP finished with warnings (exit code 2) - check the ZAP log above")
-                    } else if (zapStatus != 0) {
-                        error("OWASP ZAP failed with exit code: ${zapStatus}")
-                    }
-                }
+            // 5. Inspect generated reports
+            sh '''
+                echo "========== ZAP REPORTS =========="
+                ls -lah "$WORKSPACE/zap-reports"
+                echo "================================="
+            '''
+
+            // 6. Handle ZAP execution status
+            if (zapStatus == 1) {
+                error("OWASP ZAP Automation Framework encountered an error.")
+            }
+
+            if (zapStatus == 2) {
+                unstable("OWASP ZAP completed with warnings. Review the scan output.")
+            }
+
+            if (zapStatus != 0 && zapStatus != 2) {
+                error("Unexpected ZAP exit code: ${zapStatus}")
             }
         }
+    }
+}
+
 
 }
 
