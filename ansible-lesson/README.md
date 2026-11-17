@@ -12,3 +12,14 @@ ansible --version
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/ansible_key -C "Ansible automation key"
+```
+
+```bash
+ansible-vault --help 
+
+ansible-vault encrypt credentials/demo-vars.yaml 
+ansible-vault view credentials/demo-vars.yaml 
+
+ansible-playbook --ask-vault-pass # type password of vault 
+ansible-playbook --vault-password-file filename # no need type the password 
+```
