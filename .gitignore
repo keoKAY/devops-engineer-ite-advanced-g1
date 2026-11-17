@@ -1,2 +1,4 @@
 local-lab/.vagrant
 ite-jenkins/sonarqube/.env
+
+ansible-lesson/credentials

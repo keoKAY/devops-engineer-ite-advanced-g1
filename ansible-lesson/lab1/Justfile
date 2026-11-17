@@ -1,0 +1,2 @@
+demo: 
+    ansible-playbook playbooks/basic.yaml

@@ -1,0 +1,27 @@
+- name: Basic Playbooks 
+  hosts: stag-server
+  become: true 
+  vars: 
+    user:
+      username: deploy-agent 
+      password: your-password-here 
+  tasks: 
+    - name: Update APT 
+      apt: 
+        update_cache: true 
+    - name: Install Common Packages 
+      apt: 
+        name: 
+          - nginx 
+          - tree 
+          - fish 
+        state: present 
+    - name: Create a New User 
+      user: 
+        name: "{{ user.username }}" 
+        password: "{{ user.password | password_hash('sha512') }}"
+        shell: /bin/bash 
+        createhome: yes 
+        groups:
+          - sudo 
+          - docker 
