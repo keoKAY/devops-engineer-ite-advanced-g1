@@ -1,0 +1,66 @@
+---
+- name: Create Infrastructure based on config file 
+  hosts: localhost
+  vars_files: 
+    - ../vars/iac_data.yaml 
+  tasks: 
+    - name: Slurp Local Public Key
+      slurp: 
+        src: "{{ssh_pub_path}}"
+      register: ssh_pub_key
+    - name: Install Python packages via apt
+      become: true 
+      apt:
+        name:
+          - python3-requests
+          - python3-google-auth
+        state: present
+        update_cache: yes
+      when: true 
+    - name: Create GCP instance
+      google.cloud.gcp_compute_instance:
+        name: "{{ item.name }}"
+        machine_type: "{{item.machine_type}}"
+        zone: "{{item.zone}}"
+        project: "{{gcp_project_id}}"
+        auth_kind: application
+        state: present
+        metadata:
+          ssh-keys: "{{agent_user}}:{{ ssh_pub_key['content'] | b64decode }}"
+          startup-script: |
+            #!/bin/bash 
+            sudo apt-get update && sudo apt-get upgrade -y 
+            sudo apt-get install fish -y
+        # Distro + Disk Size 
+        disks:
+          - auto_delete: true
+            boot: true
+            initialize_params:
+              source_image: "{{ item.image }}"
+              disk_size_gb: "{{item.disk_size}}"
+              disk_type: "{{ item.disk_type }}"
+        # Network Config Default
+        network_interfaces:
+          - network:
+              selfLink: "projects/{{gcp_project_id}}/global/networks/default"
+            access_configs:
+              - name: External NAT
+                type: ONE_TO_ONE_NAT
+        # Network Tags (80,443)
+        tags:
+          items:
+            - http-server
+            - https-server
+      register: gcp_instances
+      loop: "{{machines_info}}"
+      when: true 
+    - name: Write gcp_instance into json file
+      copy:
+        content: "{{ gcp_instances }}"
+        dest: "./gcp_instances.json"
+      when: true 
+    - name: Generate Inventory 
+      template: 
+        src: "../templates/master-template.j2"
+        dest: "../inventory.ini" 
+ 

@@ -1,0 +1,11 @@
+services: 
+  fileupload-srv:
+    image: lyvanna544/ansible-spring-file-svc:latest
+    container_name: spring-fileupload-cont 
+    pull_policy: always 
+    volumes: 
+      - image-backup-vol:/app/filestorage/images
+    ports: 
+      - 8080:${APP_PORT:-8080}
+volumes: 
+  image-backup-vol:

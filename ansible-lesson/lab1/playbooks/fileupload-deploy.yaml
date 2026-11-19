@@ -1,0 +1,24 @@
+--- 
+- name: Deploy Spring Fileupload Service  
+  hosts: stag-server  
+  vars_files: 
+    - ../vars/spring-svc-vars.yaml
+  vars: 
+    dh_full_img_url: "{{fileupload_svc.docker.username}}/{{fileupload_svc.docker.image}}"
+  tasks: 
+
+  # mkdir -p 
+    - name: Create Project Directory 
+      file: 
+        path: "{{fileupload_svc.path}}"
+        recurse: yes 
+        mode: '0755'
+        state: directory 
+    - name: Copy Compose to Project Directory 
+      copy: 
+        src: ../vars/spring-compose.yaml 
+        dest: "{{fileupload_svc.path}}/compose.yaml"
+    - name: Start the containers 
+      command: "docker compose up -d "
+      args: 
+        chdir: "{{ fileupload_svc.path }}" 

@@ -1,0 +1,8 @@
+fileupload_svc: 
+  git_url: "https://gitlab.com/devops-trainings3/special-trainning/sample-projects/simple-fileupload-gradle.git"
+
+  path: "~/Documents/spring-fileupload"
+  docker: 
+    username: lyvanna544
+    image: ansible-spring-file-svc
+  

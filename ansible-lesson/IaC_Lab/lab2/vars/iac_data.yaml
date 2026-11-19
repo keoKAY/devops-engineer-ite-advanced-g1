@@ -1,0 +1,51 @@
+agent_user: "kk" # change this for your acc 
+gcp_project_id: "project-02955015-f324-4bd5-ade" # change this 
+ssh_pub_path: "~/.ssh/id_ed25519.pub" # change this 
+adc_file: "~/.config/gcloud/application_default_credentials.json"
+
+
+
+machine_specs:
+  large:
+    machine_type: "e2-standard-2" 
+    zone: "asia-east2-a" # hongkong
+    disk_size: 45
+    disk_type: "pd-standard" # we have hdd(pd-standard) , ssd( pd-ssd)
+  medium:
+    machine_type: "e2-medium"
+    zone: "asia-southeast2-a" # Jarkata 
+    disk_size: 30
+    disk_type: "pd-standard"
+
+ubuntu_specs:
+  v22:
+    image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
+  v24:
+    image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
+machines_info:
+  - name: "master02"
+    machine_type: "{{ machine_specs.medium.machine_type }}"
+    image: "{{ ubuntu_specs.v24.image }}"
+    zone: "{{ machine_specs.medium.zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+  - name: "master03"
+    machine_type: "{{ machine_specs.medium.machine_type }}"
+    image: "{{ ubuntu_specs.v24.image }}"
+    zone: "{{ machine_specs.medium.zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+  
+  
+  - name: "worker01"
+    machine_type: "{{ machine_specs.large.machine_type }}"
+    image: "{{ ubuntu_specs.v24.image }}"
+    zone: "{{ machine_specs.large.zone }}"
+    disk_size: "{{ machine_specs.medium.disk_size }}"
+    disk_type: "{{ machine_specs.medium.disk_type }}"
+  - name: "worker02"
+    image: "{{ ubuntu_specs.v24.image }}"
+    machine_type: "{{ machine_specs.large.machine_type }}"
+    zone: "{{ machine_specs.large.zone }}"
+    disk_size: "{{ machine_specs.medium.disk_size }}"
+    disk_type: "{{ machine_specs.medium.disk_type }}"

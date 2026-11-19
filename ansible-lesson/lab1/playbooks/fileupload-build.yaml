@@ -1,0 +1,21 @@
+--- 
+- name: Build & Push Spring File Service Playbook
+  hosts: localhost 
+  become_user: istad
+  vars_files: 
+    - ../vars/spring-svc-vars.yaml
+  vars: 
+    dh_full_img_url: "{{fileupload_svc.docker.username}}/{{fileupload_svc.docker.image}}:latest"
+  tasks: 
+    - name: Debug Variable 
+      debug: 
+        msg: "Project dir: {{fileupload_svc.path}}"
+    - name: Clone the source code 
+      command: "git clone {{ fileupload_svc.git_url }} {{fileupload_svc.path}}" 
+      ignore_errors: true 
+    - name: Build Docker Image 
+      command: "docker build -t {{dh_full_img_url}} -f dev.Dockerfile ."
+      args: 
+        chdir: "{{fileupload_svc.path}}"
+    - name: Push to DH 
+      command: "docker push {{ dh_full_img_url }}"

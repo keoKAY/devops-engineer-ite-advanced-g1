@@ -1,0 +1,41 @@
+# This pb, will delete  gcp instance 
+- name: Remove GCP Playbook 
+  hosts: localhost
+  #become: true 
+  #become_user: kk 
+  vars_files: 
+    - ../vars/gcp_credential.yaml 
+  tasks: 
+    - name: Remove GCP instance
+      google.cloud.gcp_compute_instance:
+        name: "{{machine_name}}"
+        machine_type: "e2-medium"
+        zone: "us-central1-a"
+        project: "{{gcp_project_id}}"
+        auth_kind: application
+        #auth_kind: "serviceaccount"
+        #service_account_file: "{{ service_account_path }}"
+        state: absent
+        # Distro + Disk Size 
+        disks:
+          - auto_delete: true
+            boot: true
+            initialize_params:
+              source_image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
+              disk_size_gb: 15
+              disk_type: "pd-standard"
+        # Network Config Default
+        network_interfaces:
+          - network:
+              selfLink: "projects/{{gcp_project_id}}/global/networks/default"
+            access_configs:
+              - name: External NAT
+                type: ONE_TO_ONE_NAT
+        # Network Tags (80,443)
+        tags:
+          items:
+            - http-server
+            - https-server
+      register: gcp_instance
+      when: true 
+

@@ -1,0 +1,4 @@
+create: 
+    ansible-playbook playbooks/create_iac.yaml
+destroy:
+    ansible-playbook playbooks/destroy_gcp.yaml

@@ -8,7 +8,22 @@ sudo apt install ansible
 
 ansible --version 
 ```
-
+Our Folder Structure 
+```bash
+.
+├── credentials
+│   ├── ansible_key
+│   └── vault1-pass.txt
+├── lab1
+│   ├── ansible.cfg
+│   ├── inventory.ini
+│   ├── Justfile
+│   ├── playbooks
+│   │   └── basic.yaml
+│   └── vars
+│       └── demo-vars.yaml
+└── README.md
+```
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/ansible_key -C "Ansible automation key"
